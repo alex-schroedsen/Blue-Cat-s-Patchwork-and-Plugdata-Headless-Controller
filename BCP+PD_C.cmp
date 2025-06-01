@@ -1,0 +1,35 @@
+[Main]
+Type=1
+Src=BCP+PD_C.WBT
+Targ=C:\Users\Alex Schroedsen\Dropbox\WinBatch\Blue Cat Audio Switch\BCP+PD_C.exe
+Icon=
+CmpVersion=6
+Targ64=C:\Users\Alex Schroedsen\Dropbox\WinBatch\Blue Cat Audio Switch\BCP+PD_C.exe
+[Options]
+TechWebPage=
+UACManifestSelection=asInvoker
+UACManifestUI=false
+CodeSign=0
+CodeSignDetails=~~
+RunHidden=0
+LargeExtractDest=0
+PreventAutoExtract=1
+[Version Info]
+Comments=Added process priority as 5th command line parameter.
+CompanyName=Alex Schroedsen
+FileDescription=Blue Cat's PatchWork and PlugData Controller
+FileVersion=1.0.0.5
+InternalName=BCP+PD_C.exe
+LegalCopyright=
+LegalTrademarks=
+OriginalFilename=BCP+PD_C.exe
+ProductName=BCP+PD_C
+ProductVersion=1.0.0.5
+[Other Files]
+Count=1
+File001=C:\Users\Alex Schroedsen\Dropbox\WinBatch\Blue Cat Audio Switch\msxml6_x86.msi
+[Extenders64]
+Count=1
+File001=wwprc64i.dll
+[Extenders]
+Count=0

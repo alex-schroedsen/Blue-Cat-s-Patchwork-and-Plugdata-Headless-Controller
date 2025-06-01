@@ -1,0 +1,240 @@
+self=IntControl(1004, 0, 0, 0, 0)         ; Get fully qualified name of the current WB program
+path=itemRemove(-1,self,"\")
+
+title="Blue Cat's Patchwork + PlugData Controller"
+
+appData=environment("APPDATA")
+userProfile=environment("USERPROFILE")
+ProgramFilesx86=environment("ProgramFiles(x86)")
+ProgramFiles=environment("ProgramFiles")
+temp=environment("TEMP")
+
+prcDllName="WWPRC64I.DLL"
+processExtDllPath=strCat(TEMP,"\",prcDllName)
+if FileExist(processExtDllPath) == @FALSE THEN extractAttachedFile(prcDllName,processExtDllPath)
+AddExtender(processExtDllPath);adds process extender.
+
+settingsFile=strCat(path,"\BCPC.INI")
+
+presetsDir=strCat(userProfile,"\Documents\Blue Cat Audio\Blue Cat's PatchWork\Presets")
+priorityList=strCat(32,@TAB,"NORMAL_PRIORITY_CLASS",@CR,64,@TAB,"IDLE_PRIORITY_CLASS",@CR,128,@TAB,"HIGH_PRIORITY_CLASS",@CR,256,@TAB,"REALTIME_PRIORITY_CLASS",@CR,16384,@TAB,"BELOW_NORMAL_PRIORITY_CLASS",@CR,32768,@TAB,"ABOVE_NORMAL_PRIORITY_CLASS")
+
+
+if isDefined(param1) == @FALSE 
+	message( title, strCat("Parameters used to control this program:",@CRLF,@CRLF,@CRLF,self," <1> <2> <3> <4> <5>",@CRLF,@CRLF,"1: Set to 1 for 32-bit Blue Cat's Patchwork, 2 for 64-bit Blue Cat's Patchwork, 3 for Plugdata and 0 to suppress this message.",@CRLF,@CRLF,"2: If running Blue Cat's Patchwork: Filename including extension also excluding path of a .preset file in ",presetsDir," to be applied.",@CRLF,"If running PlugData: Filename including extension also including path of a .pd file.",@CRLF,@CRLF,"3: Sampling rate to be applied in integer form.",@CRLF,@CRLF,"4: Audio buffer size to be applied in integer form.",@CRLF,@CRLF,"5: Audio Processing program process priority.",@CRLF,strReplace(priorityList,@CR,@CRLF),@CRLF,@CRLF,"Note: setting any of these parameters to 0 (Zero) will retain the current setting.") )
+	exit
+	endif
+if isDefined(param2) == @FALSE then param2=0
+if isDefined(param3) == @FALSE then param3=0
+if isDefined(param4) == @FALSE then param4=0
+if isDefined(param5) == @FALSE then param5=0
+;if param1 == 0 && clipGet() == 32 then param1=1 ;Allows this instance of this program to pick-up previous 32-bit BC value.
+;if param1 == 0 && clipGet() == 64 then param1=2 ;Allows this instance of this program to pick-up previous 64-bit BC value.
+;if param1 == 0 && clipGet() == 128 then param1=3 ;Allows this instance of this program to pick-up previous plugdata value.
+if param1 == 0 then param1=iniReadPvt("BCPC","param1","(NONE)",settingsFile)
+if param5 == 0 then param5=iniReadPvt("BCPC","priority","(NONE)",settingsFile)
+
+
+
+Select fileExist(settingsFile)
+   case @TRUE
+     BCPatchWork=iniReadPvt("BCPC","BCPatchWorkEXE","(NONE)",settingsFile)
+	  BCPatchWorkx64=iniReadPvt("BCPC","BCPatchWorkEXEx64","(NONE)",settingsFile)
+	  plugdata=iniReadPvt("BCPC","plugdata","(NONE)",settingsFile)
+     break
+   case @FALSE
+	  BCPatchWork=strCat(ProgramFilesx86,"\Blue Cat Audio\Blue Cat's PatchWork\Blue Cat's PatchWork.exe")
+	  if fileExist(BCPatchWork) == @FALSE then BCPatchWork=askFileName(strCat(title," - Locate Blue Cat's PatchWork.exe"),self,"Blue Cat's PatchWork.exe|Blue Cat's PatchWork.exe","",1)
+     iniWritePvt("BCPC","BCPatchWorkEXE",BCPatchWork,settingsFile)
+	  BCPatchWork=iniReadPvt("BCPC","BCPatchWorkEXE","(NONE)",settingsFile)
+	  If BCPatchWork == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+
+	  BCPatchWorkx64=strCat(ProgramFiles,"\Blue Cat Audio\Blue Cat's PatchWork\Blue Cat's PatchWork.exe")
+	  if fileExist(BCPatchWorkx64) == @FALSE then BCPatchWorkx64=askFileName(strCat(title," - Locate Blue Cat's PatchWork.exe (x64 version)"),self,"Blue Cat's PatchWork.exe|Blue Cat's PatchWork.exe","",1)
+     iniWritePvt("BCPC","BCPatchWorkEXEx64",BCPatchWorkx64,settingsFile)
+	  BCPatchWorkx64=iniReadPvt("BCPC","BCPatchWorkEXEx64","(NONE)",settingsFile)
+	  If BCPatchWorkx64 == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+
+	  plugdata=askFileName(strCat(title," - plugdata.exe"),self,"plugdata.exe|plugdata.exe","",1)
+     iniWritePvt("BCPC","plugdata",plugdata,settingsFile)
+	  plugdata=iniReadPvt("BCPC","plugdata","(NONE)",settingsFile)
+	  If plugdata == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+     
+	  param5=itemExtract(1,askItemList(strCat(title," - Select Default Audio Process Priority"), priorityList,@CR,@unsorted, @single, @TRUE ),@TAB)
+	  iniWritePvt("BCPC","priority",param5,settingsFile);sets realtime priority
+	  param5=iniReadPvt("BCPC","priority","(NONE)",settingsFile)
+	  If param5 == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+     break
+EndSelect
+
+
+Switch @TRUE ;itemLocate(param1,"1|2|3|(NONE)","|")
+   case param1 == 0
+     if message( title,strCat("ERROR: param1 value in ",settingsFile," was set to an illegal value. Please set the value to an integer 1-3. Correct this before continuing. The program will now exit.")) then exit
+     break
+   case (param1 == 1||param1 == 2||param1 == 3)
+     iniWritePvt("BCPC","param1",param1,settingsFile)
+	  param1=iniReadPvt("BCPC","param1","(NONE)",settingsFile)
+	  If param1 == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+     break
+   case param1 == 4
+	  ;This code should never be run, because the isdefined(param1) == @FALSE should catch it before it gets to this point.
+     if message( title,strCat("ERROR: param1 value in ",settingsFile," does not exist. Please run this program with the first command line parameter set to integer 1-3. Correct this before continuing. The program will now exit.")) then exit
+     break
+EndSwitch
+
+Switch @TRUE
+   case param5 == "(NONE)"
+	  if message( title,strCat("A process priority has not been set for the audio processing program to be run. Please define ""priority"" in the ",settingsFile," to one of the following integers: ",@CRLF,strReplace(priorityList,@CR,@CRLF),@CRLF," Program will now exit.")) then exit
+     break
+   case itemLocate(param5,"32|64|128|256|16384|32768","|") == 0
+     if message( title,strCat("An INVALID process priority indicator has been set for the audio processing program to be run. Please define ""priority"" in the ",settingsFile," to one of the following integers: ",@CRLF,strReplace(priorityList,@CR,@CRLF),@CRLF," Program will now exit.")) then exit
+     break
+   case itemLocate(param5,"32|64|128|256|16384|32768","|") != 0
+	  priority = param5
+     break
+EndSwitch
+
+
+
+;if param1 == 1 then clipPut(32) ;Allows the device to reset to 32-bit when parameter 1 is set to 1. May be redundant.
+
+
+Switch @TRUE
+   case (param1 == 1 || param1 == 2);If we're running Blue Cat's Patchwork 32-bit or 64-bit.
+     audioSetupFile=strCat(appData,"\Blue Cat Audio\Blue Cat's PatchWork\audio-midi-setup.xml")
+     break
+   case param1 == 3;If we're running PlugData
+     audioSetupFile=strCat(appData,"\plugdata\plugdata.settings")
+     break
+EndSwitch
+
+
+Switch @TRUE
+   case param1 == 1
+     executable=BCPatchWork ;assign the 32-bit version of Blue Cat's Patchwork in the program-to-run variable.
+	  parameters=""
+;     iniWritePvt("BCPC","param1",1,settingsFile)
+;	  param1=iniReadPvt("BCPC","param1","(NONE)",settingsFile)
+;	  If param1 == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+;	  clipPut(32);leaves a hint so the 32-bit version of Blue Cat's Patchwork can be run if defaulting to last mode (param1==0).
+     break
+   case param1 == 2
+     executable=BCPatchWorkx64 ;assign the 64-bit version of Blue Cat's Patchwork in the program-to-run variable.
+	  parameters=""
+;     iniWritePvt("BCPC","param1",2,settingsFile)
+;	  param1=iniReadPvt("BCPC","param1","(NONE)",settingsFile)
+;	  If param1 == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+;	  clipPut(64);leaves a hint so the 64-bit version of Blue Cat's Patchwork can be run if defaulting to last mode (param1==0).
+     break
+   case param1 == 3
+     executable=plugdata ;assign the plugdata in the program-to-run variable.
+;	  clipput(128);leaves a hint so PlugData can be run if defaulting to last mode (param1==0).
+	  if fileExist(param2) == @FALSE then if message( title,strCat(param2," is not a valid PD file path. Next you will be prompted to select a PlugData/PureData PD file.")) THEN param2=askFileName(title,path,"PD File|*.pd","",1)
+	  parameters=fileNameShort(param2)
+;     iniWritePvt("BCPC","param1",3,settingsFile)
+;	  param1=iniReadPvt("BCPC","param1","(NONE)",settingsFile)
+;	  If param1 == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+     iniWritePvt("BCPC","parameters",parameters,settingsFile)
+	  parameters=iniReadPvt("BCPC","parameters","(NONE)",settingsFile)
+	  If parameters == "(NONE)" THEN IF message( title,strCat(settingsFile," is not writeable. Fix this before continuing. Program will now exit.")) THEN EXIT
+     break
+EndSwitch
+
+;/////////////////////////////Continue from here.
+While appExist("Blue Cat's PatchWork.exe",1,0) || appExist("plugdata.exe",1,0)
+timeDelay(0.1)
+if appExist("Blue Cat's PatchWork.exe",1,0) == @TRUE then TerminateApp("Blue Cat's PatchWork.exe",3,1 )
+if appExist("plugdata.exe",1,0) == @TRUE then TerminateApp("plugdata.exe",3,1 )
+EndWhile
+
+
+Switch @TRUE
+   case param2 != 0 && (param1 == 1 || param1 == 2)
+     fileCopy(strCat(presetsDir,"\",param2),strCat(presetsDir,"\Default.preset"), @False )
+     break
+   case param2 == 0 && param1 == 3
+     ;do nothing
+     break
+EndSwitch
+
+errorMode(@OFF )
+xmlPresentTest = ObjectOpen("Msxml2.DOMDocument.6.0")
+errorMode( @CANCEL)
+Switch @TRUE
+   case xmlPresentTest == 0
+	  message(title,"MSXML 4.0 Service Pack 2 will now be installed. This is a mandatory tool needed for reading the Blue Cat's Patchwork Settings file. Please authorize administrative privileges for the install.")
+	  extractAttachedFile("msxml6_x86.msi",strCat(temp,"\msxml6_x86.msi"))
+     shellExecute("msiexec.exe",strCat("/i """,temp,"\msxml6_x86.msi"" /passive"),dirWindows(1), @NORMAL, "" )
+     break
+   case xmlPresentTest != 0
+     break
+EndSwitch
+
+xmlDoc = ObjectOpen("Msxml2.DOMDocument.6.0")
+xmlDoc.async = @FALSE
+xmlDoc.validateOnParse = @TRUE
+xmlDoc.load(audioSetupFile)
+
+err = xmlDoc.parseerror
+If err.errorCode Then GoSub ShowParseErrors
+
+Switch @TRUE
+   case param3 == 0
+     ;do nothing
+     break
+   case param3 != 0 && (param1 == 1 || param1 == 2);If we're running Blue Cat's Patchwork 32-bit or 64-bit.
+     xmlDoc.selectSingleNode("/Config").SetAttribute("sampleRate",param3)
+     break
+   case param3 != 0 && param1 == 3;If we're running PlugData.
+     xmlDoc.selectSingleNode("/PROPERTIES/VALUE/DEVICESETUP").SetAttribute("audioDeviceRate",param3)
+     break
+EndSwitch
+
+Switch @TRUE
+   case param4 == 0
+     ;do nothing
+     break
+   case param4 != 0 && (param1 == 1 || param1 == 2);If we're running Blue Cat's Patchwork 32-bit or 64-bit.
+     xmlDoc.selectSingleNode("/Config").SetAttribute("bufferSize",param4)
+     break
+   case param4 != 0 && param1 == 3;If we're running PlugData.
+     xmlDoc.selectSingleNode("/PROPERTIES/VALUE/DEVICESETUP").SetAttribute("bufferSize",param4)
+     break
+EndSwitch
+
+;xmlDoc.selectSingleNode("/Config").SetAttribute(attrName,newValue)
+xmlDoc.Save(audioSetupFile)
+
+currNode = 0
+xmlDoc = 0
+
+pid=runShell(executable,parameters,itemRemove(-1,executable,"\"), @NORMAL, @GETPROCID)
+tSetPriority(pid, priority)         ; Sets priority class of a process.
+
+Switch @TRUE
+   case (param1 == 1 || param1 == 2);If we're running Blue Cat's Patchwork 32-bit or 64-bit.
+     boxText("Waiting for Blue Cat's PatchWork.exe to close. This program remains open for status indication.")
+     break
+   case param1 == 3;If we're running PlugData.
+     boxText("Waiting for PlugData.exe to close. This program remains open for status indication.")
+     break
+EndSwitch
+
+
+appWaitClose(pid,2,0)
+exit
+
+:ShowParseErrors
+ec = err.errorCode
+er = err.reason
+el = err.line
+elp = err.linepos
+es  = err.srcText
+msg = StrCat("Error Code: ", ec, @LF)
+msg = StrCat(msg, "Reason: ", er, @LF)
+msg = StrCat(msg, "Line: ", el, " ", "Column: ", elp, @LF)
+msg = StrCat(msg, "Text: ", es)
+clipput(msg)
+Message(strCat(title," - XML Parse Error"), strCat(msg,@CRLF,@CRLF,"The contents of this message have been pasted to the clipboard.",@CRLF,@CRLF,title," will now exit."))
+exit
